@@ -13,19 +13,52 @@ OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Modelo gratuito de OpenRouter
-MODEL = "mistralai/mistral-nemo:free"
+MODEL = "mistralai/mistral-nemo:free"   
 
 # Prompt del sistema para especializar el chatbot en NFL
-SYSTEM_PROMPT = """Eres un asistente que SOLO responde preguntas sobre la NFL (National Football League).
+# Prompt del sistema para especializar el chatbot en NFL (multilingüe)
+SYSTEM_PROMPT = """Eres un asistente experto en la NFL (National Football League).
 
-Si te preguntan sobre la NFL: responde con información clara sobre equipos, jugadores, reglas, Super Bowl, estadísticas, historia, etc.
+IMPORTANTE: Debes responder TODAS las preguntas relacionadas con:
+- NFL, fútbol americano profesional
+- Equipos (Cowboys, Patriots, Chiefs, etc.)
+- Jugadores actuales o históricos
+- Reglas del juego
+- Super Bowl, playoffs, temporada regular
+- Estadísticas, récords
+- Historia de la liga
+- Posiciones, formaciones, estrategias
+- Draft, trades, contratos
+- Cualquier cosa relacionada con fútbol americano profesional
 
-Si te preguntan sobre OTRO TEMA (política, cocina, otros deportes, películas, etc.): responde exactamente: "Lo siento, solo puedo responder preguntas sobre la NFL. Pregúntame sobre fútbol americano profesional."
+SOLO rechaza preguntas que claramente NO sean sobre fútbol americano o la NFL, como:
+- Política
+- Cocina y recetas
+- Otros deportes (soccer, basketball, baseball)
+- Entretenimiento no relacionado
+- Temas personales
 
-Responde siempre en español de forma clara y concisa."""
+Si alguien pregunta algo fuera de la NFL, responde en el mismo idioma de la pregunta: "Lo siento, solo puedo ayudarte con temas de la NFL y fútbol americano profesional."
+
+IDIOMAS: Responde SIEMPRE en el mismo idioma en que te hacen la pregunta (español, inglés, francés, etc.). Detecta automáticamente el idioma del usuario."""
+
+
+def is_goodbye(message):
+    """Detecta si el usuario se está despidiendo"""
+    goodbyes = [
+        'adios', 'adiós', 'bye', 'chao', 'hasta luego', 'nos vemos',
+        'me voy', 'gracias', 'thank you', 'thanks', 'bye bye',
+        'hasta pronto', 'see you', 'goodbye', 'good bye'
+    ]
+    message_lower = message.lower().strip()
+    return any(word in message_lower for word in goodbyes)
 
 def query_openrouter(user_message):
     """Consulta el modelo de OpenRouter"""
+    # Detectar despedidas
+    if is_goodbye(user_message):
+        return "¡Hasta pronto! Fue un placer ayudarte con información sobre la NFL. ¡Vuelve cuando quieras! 🏈"
+    
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
@@ -49,7 +82,21 @@ def query_openrouter(user_message):
         if response.status_code == 200:
             result = response.json()
             if "choices" in result and len(result["choices"]) > 0:
-                return result["choices"][0]["message"]["content"].strip()
+                bot_response = result["choices"][0]["message"]["content"].strip()
+                
+                # Agregar pregunta de seguimiento solo si NO es rechazo
+                rejection_phrases = [
+                    "lo siento, solo puedo",
+                    "sorry, i can only",
+                    "no puedo ayudarte con",
+                    "i cannot help"
+                ]
+                is_rejection = any(phrase in bot_response.lower() for phrase in rejection_phrases)
+                
+                if not is_rejection:
+                    bot_response += "\n\n¿Tienes alguna otra pregunta sobre la NFL? 🏈"
+                
+                return bot_response
             return "No se pudo generar respuesta"
         
         elif response.status_code == 401:

@@ -42,6 +42,9 @@
         const sendBtn = document.getElementById('sendBtn');
         const loadingIndicator = document.getElementById('loadingIndicator');
 
+        // Generar ID único de sesión
+        const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
         function sendMessage() {
             const message = userInput.value.trim();
             if (!message) return;
@@ -54,13 +57,16 @@
             loadingIndicator.style.display = 'flex';
             sendBtn.disabled = true;
 
-            // Enviar al servidor
+            // Enviar al servidor con session_id
             fetch('/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ message: message })
+                body: JSON.stringify({ 
+                    message: message,
+                    session_id: sessionId 
+                })
             })
             .then(response => response.json())
             .then(data => {
@@ -83,7 +89,7 @@
         function addMessage(text, sender) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}-message`;
-            messageDiv.innerHTML = `<p>${escapeHtml(text)}</p>`;
+            messageDiv.innerHTML = `<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`;
             chatBox.appendChild(messageDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
