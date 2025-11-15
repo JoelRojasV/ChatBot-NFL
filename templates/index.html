@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot de NFL</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="chatbot-wrapper">
+            <div class="header">
+                <h1>Chatbot de NFL</h1>
+                <p class="subtitle">Especialista en fútbol americano profesional</p>
+            </div>
+            
+            <div class="chat-box" id="chatBox">
+                <div class="message bot-message">
+                    <p>Hola, soy tu asistente especializado en NFL. ¿Qué deseas saber sobre la NFL?</p>
+                </div>
+            </div>
+            
+            <div class="input-area">
+                <input 
+                    type="text" 
+                    id="userInput" 
+                    placeholder="Escribe tu pregunta sobre NFL..."
+                    autocomplete="off"
+                >
+                <button id="sendBtn" onclick="sendMessage()">Enviar</button>
+            </div>
+            
+            <div id="loadingIndicator" class="loading" style="display: none;">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Mostrar mensaje del usuario
+            addMessage(message, 'user');
+            userInput.value = '';
+
+            // Mostrar indicador de carga
+            loadingIndicator.style.display = 'flex';
+            sendBtn.disabled = true;
+
+            // Enviar al servidor
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingIndicator.style.display = 'none';
+                sendBtn.disabled = false;
+
+                if (data.error) {
+                    addMessage(`Error: ${data.error}`, 'bot');
+                } else {
+                    addMessage(data.response, 'bot');
+                }
+            })
+            .catch(error => {
+                loadingIndicator.style.display = 'none';
+                sendBtn.disabled = false;
+                addMessage(`Error de conexión: ${error.message}`, 'bot');
+            });
+        }
+
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            messageDiv.innerHTML = `<p>${escapeHtml(text)}</p>`;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Permitir enviar con Enter
+        userInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Focus en el input al cargar
+        userInput.focus();
+    </script>
+</body>
+</html>
